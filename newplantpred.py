@@ -7,8 +7,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# @st.cache(allow_output_mutation=True)
-@st.cache_resource
+@st.cache(allow_output_mutation=True)
+# @st.cache_resource
 def load_model():
     try:
         model = tf.keras.models.load_model('newplantdis.keras')
