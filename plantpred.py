@@ -173,8 +173,8 @@ elif(app_mode=='Disease Recognition'):
  'Tomato___Tomato_mosaic_virus',
  'Tomato___healthy'
         ]
-        image_class = classes[result_index]
-        st.success(f'Model is Predicting it is a {image_class}')
+        # image_class = classes[result_index]
+        st.success(f'Model is Predicting it is a {classes[result_index]}')
                
 
 
