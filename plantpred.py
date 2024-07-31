@@ -5,12 +5,13 @@ Created on Tue Jul 30 05:37:45 2024
 
 @author: excellus
 """
-@st.cache(allow_output_mutation=True)
-# @st.cache_resource
 
 import streamlit as st
 import tensorflow as tf
 import numpy as np
+
+@st.cache(allow_output_mutation=True)
+# @st.cache_resource
 
 def model_prediction(test_image):
     model = tf.keras.models.load_model('newplantdis.keras')
