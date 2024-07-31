@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@st.cache(allow_output_mutation=True)
+# @st.cache(allow_output_mutation=True)
 @st.cache_resource
 def load_model():
     try:
@@ -158,8 +158,7 @@ elif app_mode == 'Disease Recognition':
         
         if st.button('Predict'):
             result_index = model_prediction(test_image)
-            if result_index is not None:
-                classes = [
+            classes = [
                     'Apple___Apple_scab',
                    'Apple___Black_rot',
                    'Apple___Cedar_apple_rust',
@@ -199,8 +198,9 @@ elif app_mode == 'Disease Recognition':
                    'Tomato___Tomato_mosaic_virus',
                    'Tomato___healthy'
                 ]
-                image_class = classes[result_index]
-                st.success(f'Model is Predicting it is a {image_class}')
+            if result_index is not None:
+                # image_class = classes[result_index]
+                st.success(f'Model is Predicting it is a {classes[result_index]}')
     else:
         st.info("Please upload an image to proceed with prediction.")
 
