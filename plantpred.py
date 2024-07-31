@@ -5,6 +5,8 @@ Created on Tue Jul 30 05:37:45 2024
 
 @author: excellus
 """
+@st.cache(allow_output_mutation=True)
+# @st.cache_resource
 
 import streamlit as st
 import tensorflow as tf
