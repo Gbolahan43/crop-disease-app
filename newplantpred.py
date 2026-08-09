@@ -53,14 +53,89 @@ st.set_page_config(
 # Styling — light, paper-like, distinct from the dark plantpredv2.py theme
 # ──────────────────────────────────────────────────────────────────────────────
 def inject_css():
+    # This page forces a light background, so every piece of text needs an
+    # explicit dark colour: under a dark Streamlit theme the inherited text
+    # colour is near-white and vanishes. Streamlit's own theme rules are more
+    # specific than a bare `h1`, hence the data-testid selectors and !important.
     st.markdown(
         """
         <style>
-        .stApp { background: #f5f7f2; }
+        .stApp, [data-testid="stAppViewContainer"] {
+            background: #f5f7f2;
+            color-scheme: light;
+        }
 
-        [data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e0e5db; }
+        /* ── Base text colours ── */
+        .stApp, .stApp p, .stApp li, .stApp label, .stApp span, .stApp div {
+            color: #2f3a34;
+        }
+        .stApp h1, .stApp h2, .stApp h3,
+        .stApp h4, .stApp h5, .stApp h6 {
+            color: #14301f !important;
+            font-weight: 700;
+        }
+        /* Streamlit wraps markdown headings in its own container */
+        [data-testid="stMarkdownContainer"] h1,
+        [data-testid="stMarkdownContainer"] h2,
+        [data-testid="stMarkdownContainer"] h3,
+        [data-testid="stMarkdownContainer"] h4,
+        [data-testid="stMarkdownContainer"] h5,
+        [data-testid="stMarkdownContainer"] h6 { color: #14301f !important; }
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stMarkdownContainer"] li { color: #2f3a34; }
+        [data-testid="stHeaderActionElements"] { display: none; }
 
-        h1, h2, h3 { color: #1b3a2b; font-weight: 700; }
+        /* ── Captions and metrics ── */
+        [data-testid="stCaptionContainer"], .stCaption,
+        [data-testid="stCaptionContainer"] p, .stCaption p {
+            color: #55655a !important;
+        }
+        [data-testid="stMetricValue"] { color: #14301f !important; }
+        [data-testid="stMetricLabel"],
+        [data-testid="stMetricLabel"] p { color: #55655a !important; }
+
+        /* ── Sidebar: white panel, so the same dark-text treatment ── */
+        [data-testid="stSidebar"] {
+            background: #ffffff;
+            border-right: 1px solid #e0e5db;
+        }
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 { color: #14301f !important; }
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] li,
+        [data-testid="stSidebar"] div { color: #2f3a34; }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
+        [data-testid="stSidebar"] .stCaption,
+        [data-testid="stSidebar"] .stCaption p { color: #55655a !important; }
+        /* The model-name code block keeps its dark chip styling */
+        [data-testid="stSidebar"] pre,
+        [data-testid="stSidebar"] code,
+        [data-testid="stSidebar"] pre * ,
+        [data-testid="stSidebar"] code * { color: #eaf1ea !important; }
+
+        /* ── Widget labels (radio, uploader) ── */
+        [data-testid="stWidgetLabel"],
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] label { color: #14301f !important; font-weight: 600; }
+        [data-testid="stFileUploaderDropzone"] { background: #ffffff; border: 1px dashed #b9c6bb; }
+        [data-testid="stFileUploaderDropzone"] * { color: #2f3a34 !important; }
+
+        /* ── Progress bars (used for the ranked candidates) ── */
+        [data-testid="stProgress"] p,
+        [data-testid="stProgress"] div { color: #2f3a34 !important; }
+
+        /* ── Alerts: force light panels so dark-theme text stays readable ── */
+        [data-testid="stAlert"], .stAlert, [data-testid="stAlertContainer"] {
+            background: #ffffff !important;
+            border: 1px solid #d9e2db !important;
+            border-radius: 6px;
+        }
+        [data-testid="stAlert"] *, .stAlert *,
+        [data-testid="stAlertContainer"] * { color: #2f3a34 !important; }
 
         .paper {
             background: #ffffff;
@@ -71,14 +146,29 @@ def inject_css():
             margin: 14px 0;
             box-shadow: 0 1px 3px rgba(27, 58, 43, 0.08);
         }
-        .paper p, .paper li { color: #33403a; font-size: 15px; line-height: 1.6; }
+        .paper p, .paper li, .paper span {
+            color: #2f3a34 !important;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .paper b, .paper strong { color: #14301f !important; }
+        .paper a { color: #2c6b40 !important; text-decoration: underline; }
+
+        /* Page title — set explicitly rather than relying on the theme */
+        .page-title {
+            font-size: 42px;
+            line-height: 1.15;
+            font-weight: 700;
+            color: #14301f !important;
+            margin: 4px 0 18px;
+        }
 
         .kicker {
             text-transform: uppercase;
             letter-spacing: 1.4px;
-            font-size: 12px;
+            font-size: 12px !important;
             font-weight: 700;
-            color: #6b7d70;
+            color: #55655a !important;
             margin-bottom: 6px;
         }
 
@@ -86,8 +176,13 @@ def inject_css():
         .verdict-disease { border-left-color: #b5462f; }
         .verdict-unsure  { border-left-color: #c98a1a; }
 
-        .verdict-name { font-size: 26px; font-weight: 700; color: #1b3a2b; margin: 2px 0 4px; }
-        .verdict-sub  { font-size: 14px; color: #6b7d70; }
+        .verdict-name {
+            font-size: 26px !important;
+            font-weight: 700;
+            color: #14301f !important;
+            margin: 2px 0 4px;
+        }
+        .verdict-sub { font-size: 14px !important; color: #55655a !important; }
 
         .stButton>button {
             background: #3f7d4f;
@@ -107,17 +202,18 @@ def inject_css():
             text-align: center;
             height: 100%;
         }
-        .step b { color: #1b3a2b; }
-        .step span { color: #6b7d70; font-size: 14px; }
+        .step, .step b { color: #14301f !important; }
+        .step span { color: #55655a !important; font-size: 14px; }
 
         .foot {
             text-align: center;
-            color: #6b7d70;
+            color: #55655a !important;
             font-size: 13px;
             padding: 18px;
             margin-top: 26px;
             border-top: 1px solid #e0e5db;
         }
+        .foot a { color: #2c6b40 !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -250,7 +346,10 @@ st.sidebar.caption(
 # ──────────────────────────────────────────────────────────────────────────────
 if page == "Home":
     st.markdown('<div class="kicker">Plant disease screening</div>', unsafe_allow_html=True)
-    st.title("Know what is wrong with your leaf")
+    st.markdown(
+        '<div class="page-title">Know what is wrong with your leaf</div>',
+        unsafe_allow_html=True,
+    )
 
     show_home_image()
 
@@ -313,7 +412,7 @@ if page == "Home":
         )
 
 elif page == "About":
-    st.title("About PlantGuard")
+    st.markdown('<div class="page-title">About PlantGuard</div>', unsafe_allow_html=True)
 
     st.markdown(
         """
@@ -379,7 +478,7 @@ elif page == "About":
                 st.markdown(f"**{crop}** — {conditions}")
 
 elif page == "Disease Recognition":
-    st.title("Disease recognition")
+    st.markdown('<div class="page-title">Disease recognition</div>', unsafe_allow_html=True)
 
     st.markdown(
         """
