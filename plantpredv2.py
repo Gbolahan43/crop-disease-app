@@ -1,8 +1,32 @@
+"""PlantGuard — dark-themed front-end.
+
+Loads `trainedv3.keras`, the weaker of the two checkpoints (0.8860 validation
+accuracy vs 0.9767 for newplantdis.keras). `plantpred.py` and `newplantpred.py`
+use the better one, so running them side by side compares the two models.
+
+Run with:  streamlit run plantpredv2.py
+
+See `plantpred.py` for the original minimal v1 UI and `newplantpred.py` for the
+light "field report" redesign.
+"""
+
 import streamlit as st
 import tensorflow as tf
 import numpy as np
 import logging
 import os
+
+from plant_classes import (
+    ALLOWED_UPLOAD_TYPES,
+    V3_MODEL_PATH as MODEL_PATH,
+    CLASS_NAMES,
+    HOME_IMAGE_PATH as HOME_IMAGE,
+    IMAGE_SIZE,
+    NUM_CLASSES,
+    crops,
+    is_healthy,
+    pretty_label,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Configuration
@@ -10,52 +34,12 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Resolve file paths relative to this script so the app works from any CWD
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "trainedv3.keras")
-HOME_IMAGE = os.path.join(BASE_DIR, "home_page.jpg")
+# Paths and the 38 class labels live in plant_classes.py, shared with the other
+# front-ends so the label order can never drift between them.
 
-# Disease class labels (38 classes for the v3 model)
-CLASS_NAMES = [
-    'Apple___Apple_scab',
-    'Apple___Black_rot',
-    'Apple___Cedar_apple_rust',
-    'Apple___healthy',
-    'Blueberry___healthy',
-    'Cherry_(including_sour)___Powdery_mildew',
-    'Cherry_(including_sour)___healthy',
-    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot',
-    'Corn_(maize)___Common_rust_',
-    'Corn_(maize)___Northern_Leaf_Blight',
-    'Corn_(maize)___healthy',
-    'Grape___Black_rot',
-    'Grape___Esca_(Black_Measles)',
-    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)',
-    'Grape___healthy',
-    'Orange___Haunglongbing_(Citrus_greening)',
-    'Peach___Bacterial_spot',
-    'Peach___healthy',
-    'Pepper,_bell___Bacterial_spot',
-    'Pepper,_bell___healthy',
-    'Potato___Early_blight',
-    'Potato___Late_blight',
-    'Potato___healthy',
-    'Raspberry___healthy',
-    'Soybean___healthy',
-    'Squash___Powdery_mildew',
-    'Strawberry___Leaf_scorch',
-    'Strawberry___healthy',
-    'Tomato___Bacterial_spot',
-    'Tomato___Early_blight',
-    'Tomato___Late_blight',
-    'Tomato___Leaf_Mold',
-    'Tomato___Septoria_leaf_spot',
-    'Tomato___Spider_mites Two-spotted_spider_mite',
-    'Tomato___Target_Spot',
-    'Tomato___Tomato_Yellow_Leaf_Curl_Virus',
-    'Tomato___Tomato_mosaic_virus',
-    'Tomato___healthy'
-]
+# Below this softmax probability the top guess is reported as uncertain rather
+# than as an answer.
+CONFIDENCE_FLOOR = 60.0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -63,31 +47,38 @@ CLASS_NAMES = [
 # ──────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_model():
-    """Load the trained v3 Keras model (cached for performance)."""
+    """Load the best-performing Keras checkpoint (cached for performance)."""
     try:
         model = tf.keras.models.load_model(MODEL_PATH)
         logger.info("Model loaded successfully")
         return model
     except Exception as e:
         logger.error(f"Error loading model: {str(e)}")
-        st.error("Failed to load the model. Please try again later.")
+        st.error(
+            f"Failed to load the model from `{os.path.basename(MODEL_PATH)}`. "
+            "Check that the checkpoint file is present, then reload the page."
+        )
         return None
 
 
 def model_prediction(test_image):
-    """Run disease prediction on an uploaded image."""
+    """Run disease prediction on an uploaded image.
+
+    Always returns a ``(class_index, confidence_pct)`` pair so callers can
+    unpack it unconditionally; both entries are None on failure.
+    """
     model = load_model()
     if model is None:
-        return None
+        return None, None
 
     try:
-        image = tf.keras.preprocessing.image.load_img(test_image, target_size=(128, 128))
+        image = tf.keras.preprocessing.image.load_img(test_image, target_size=IMAGE_SIZE)
         input_arr = tf.keras.preprocessing.image.img_to_array(image)
         input_arr = np.array([input_arr])
-        prediction = model.predict(input_arr)
-        result_ind = np.argmax(prediction)
+        prediction = model.predict(input_arr, verbose=0)
+        result_ind = int(np.argmax(prediction))
         confidence = float(np.max(prediction) * 100)
-        logger.info("Prediction successful")
+        logger.info("Prediction successful: %s", CLASS_NAMES[result_ind])
         return result_ind, confidence
     except Exception as e:
         logger.error(f"Error during prediction: {str(e)}")
@@ -216,7 +207,8 @@ if page == "Home":
         st.image(HOME_IMAGE, use_container_width=True,
                  caption="Protect Your Plants with AI-Powered Disease Detection")
     else:
-        st.warning("Home image not found.")
+        logger.warning("Home image missing at %s", HOME_IMAGE)
+        st.info("Hero image `home_page.jpg` not found — skipping.")
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Intro text ──
@@ -247,7 +239,7 @@ if page == "Home":
         )
     with col3:
         st.markdown(
-            '<div class="feature-box">✅<br><b>3. Get Diagnosis</b><br>Receive instant disease identification & treatment.',
+            '<div class="feature-box">✅<br><b>3. Get Diagnosis</b><br>Receive an instant identification with a confidence score.',
             unsafe_allow_html=True,
         )
 
@@ -259,14 +251,15 @@ if page == "Home":
             """
             <div class="card">
                 <ul style="color:#e0e0e0; font-size:16px;">
-                <li>🎯 <b>Unmatched Accuracy</b> — 98 % accuracy rate</li>
-                <li>⚡ <b>Fast Results</b> — Instant diagnoses & recommendations</li>
+                <li>🎯 <b>High Accuracy</b> — 97.7 %% on the validation split</li>
+                <li>⚡ <b>Fast Results</b> — Instant diagnosis with a confidence score</li>
                 <li>📱 <b>User-Friendly</b> — Simple interface for everyone</li>
-                <li>🌍 <b>Comprehensive</b> — Covers many crops & diseases</li>
-                <li>🔄 <b>Continuously Updated</b> — Stay current with new data</li>
+                <li>🌍 <b>Broad Coverage</b> — %d conditions across %d crops</li>
+                <li>🔌 <b>Runs Offline</b> — No API calls, CPU is enough</li>
                 </ul>
             </div>
-            """,
+            """
+            % (NUM_CLASSES, len(crops())),
             unsafe_allow_html=True,
         )
     with col_b:
@@ -304,17 +297,20 @@ elif page == "About":
         """
         <div class="card">
             <p style="color:#e0e0e0;">
-            Our state-of-the-art plant disease recognition model, trained on
-            approximately 87,000 RGB images of crop leaves, delivers a 98 %
-            accuracy rate. It can:
+            A VGG-style CNN (~5.0M parameters) trained on approximately 87,000
+            RGB images of crop leaves, reaching <b>97.7 %% accuracy on the
+            validation split</b>. That split was also used to monitor training,
+            so there is no untouched test set — read it as an optimistic
+            figure. It can:
             </p>
             <ul style="color:#e0e0e0;">
-                <li>Instantly identify plant diseases from photos</li>
-                <li>Receive tailored treatment recommendations</li>
-                <li>Access a comprehensive database of plant health information</li>
+                <li>Identify %d leaf conditions across %d crops from a photo</li>
+                <li>Report how confident it is in each prediction</li>
+                <li>Flag uncertain results instead of asserting a label</li>
             </ul>
         </div>
-        """,
+        """
+        % (NUM_CLASSES, len(crops())),
         unsafe_allow_html=True,
     )
 
@@ -384,7 +380,7 @@ elif page == "Disease Recognition":
     st.markdown("</div>", unsafe_allow_html=True)
 
     test_image = st.file_uploader(
-        "📤 Choose an image to analyse", type=["jpg", "jpeg", "png"]
+        "📤 Choose an image to analyse", type=ALLOWED_UPLOAD_TYPES
     )
 
     if test_image is not None:
@@ -401,14 +397,21 @@ elif page == "Disease Recognition":
                     result_index, confidence = model_prediction(test_image)
                 if result_index is not None:
                     disease = CLASS_NAMES[result_index]
-                    # Human-readable display name
-                    display_name = disease.replace("___", " — ").replace("_", " ")
-                    is_healthy = "healthy" in disease.lower()
-                    emoji = "🟢" if is_healthy else "🔴"
+                    display_name = pretty_label(disease)
+                    healthy = is_healthy(disease)
+                    uncertain = confidence < CONFIDENCE_FLOOR
+
+                    if uncertain:
+                        emoji, heading = "⚠️", "Uncertain"
+                    elif healthy:
+                        emoji, heading = "🟢", "Prediction Result"
+                    else:
+                        emoji, heading = "🔴", "Prediction Result"
+
                     st.markdown(
                         f"""
                         <div class="card">
-                            <h2>{emoji} Prediction Result</h2>
+                            <h2>{emoji} {heading}</h2>
                             <p style="font-size:22px;"><b>{display_name}</b></p>
                             <p style="font-size:18px; color:#90caf9;">
                             Confidence: {confidence:.1f}%
@@ -417,13 +420,22 @@ elif page == "Disease Recognition":
                         """,
                         unsafe_allow_html=True,
                     )
-                    if is_healthy:
+
+                    if uncertain:
+                        st.warning(
+                            f"Only {confidence:.1f}% confident — below the "
+                            f"{CONFIDENCE_FLOOR:.0f}% reporting threshold. The photo "
+                            "may show a crop the model does not cover, a whole plant "
+                            "rather than a single leaf, or a non-leaf subject. Treat "
+                            "this as a hint, not a diagnosis."
+                        )
+                    elif healthy:
                         st.balloons()
                     else:
                         st.warning(
-                            "Please consult an agricultural expert for treatment advice. "
-                            "Common treatments include appropriate fungicides and removing "
-                            "affected leaves promptly."
+                            "Consult an agronomist or extension officer before treating. "
+                            "This tool reports a label only — it does not prescribe "
+                            "pesticide or dosage."
                         )
     else:
         st.info("📸 Upload an image to proceed with prediction.")

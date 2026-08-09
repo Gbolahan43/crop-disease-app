@@ -1,0 +1,169 @@
+# ---------------------------------------------------------------------------
+# Dataset (PlantVillage) — ~87k images, downloaded separately, never committed.
+# See the Dataset section of README.md for the expected layout.
+# ---------------------------------------------------------------------------
+train/
+valid/
+test/
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# ---------------------------------------------------------------------------
+# Model checkpoints
+# The two .keras files in this repo are committed on purpose (the app loads
+# them at runtime), so *.keras is deliberately NOT ignored. Everything else a
+# training run spits out is.
+# ---------------------------------------------------------------------------
+*.h5
+*.hdf5
+*.pb
+*.tflite
+*.onnx
+*.ckpt
+*.ckpt.*
+checkpoints/
+saved_model/
+logs/
+runs/
+tensorboard/
+
+# ---------------------------------------------------------------------------
+# Figures written by newplantclassification.ipynb
+# (plt.savefig / PIL image.save calls — regenerate by re-running the notebook)
+# ---------------------------------------------------------------------------
+imgoverview.jpg
+output.jpg
+output1
+output1.png
+output2.jpg
+output12
+output12.png
+outputloss.jpg
+outputloss2.jpg
+precision.png
+conf_mat.png
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+conda-meta/
+
+# Packaging / tooling caches
+pip-log.txt
+pip-delete-this-directory.txt
+.pdm.toml
+.pdm-python
+__pypackages__/
+
+# Test / type-check / lint caches
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Jupyter / IPython
+# ---------------------------------------------------------------------------
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+.jupyter/
+
+# ---------------------------------------------------------------------------
+# Streamlit
+# secrets.toml holds credentials — never commit it. config.toml is shareable.
+# ---------------------------------------------------------------------------
+.streamlit/secrets.toml
+.streamlit/cache/
+
+# ---------------------------------------------------------------------------
+# Secrets / local config
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# ---------------------------------------------------------------------------
+# Editors & IDEs
+# .vscode is partially kept: share settings/extension hints, not local state.
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.spyproject/
+.spyderproject/
+.ropeproject/
+
+# ---------------------------------------------------------------------------
+# OS cruft
+# ---------------------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ---------------------------------------------------------------------------
+# Scratch / uploads
+# ---------------------------------------------------------------------------
+scratch/
+tmp/
+temp/
+uploads/
+*.log

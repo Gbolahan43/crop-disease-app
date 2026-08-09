@@ -45,20 +45,20 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
-pip install "streamlit<1.18"          # see Known issues below
 ```
 
-Run the app:
+Run whichever front-end you prefer — all three share the same model and class registry:
 
 ```bash
-streamlit run plantpredv2.py
+streamlit run plantpredv2.py     # dark theme, single prediction + confidence
+streamlit run newplantpred.py    # light "field report", top-3 ranked candidates
+streamlit run plantpred.py       # original minimal v1 UI
 ```
 
-Then open http://localhost:8501, pick **Disease Recognition** in the sidebar, upload a leaf image and
-press **Predict**.
+Then open http://localhost:8501, pick **Disease Recognition** in the sidebar, upload a `.jpg`/`.jpeg`/
+`.png` leaf image and run the prediction.
 
-> `requirements.txt` currently pins only `tensorflow`. Streamlit is installed separately (the dev
-> container does this in `updateContentCommand`). See [Known issues](#known-issues-and-limitations).
+All paths are resolved relative to the scripts, so they can be launched from any working directory.
 
 The pretrained weights (`newplantdis.keras`, `trainedv3.keras`) are committed directly to the repo —
 about 60 MB each, so the initial clone is ~120 MB.
@@ -69,9 +69,10 @@ about 60 MB each, so the initial clone is ~120 MB.
 
 | Path | Purpose |
 | --- | --- |
-| [plantpredv2.py](plantpredv2.py) | **Current app.** Streamlit UI + error handling/logging; loads `trainedv3.keras`. |
-| [newplantpred.py](newplantpred.py) | Same app, but loads `newplantdis.keras`. Identical to `plantpredv2.py` apart from that one line. |
-| [plantpred.py](plantpred.py) | Original prototype app (no error handling). Referenced by the dev container. |
+| [plant_classes.py](plant_classes.py) | **Shared registry.** The 38 class labels, model/asset paths, input size and label-formatting helpers. Imported by all three apps so the label order can never drift between them. |
+| [plantpredv2.py](plantpredv2.py) | **Dark theme.** Custom CSS, cards, radio nav, confidence score with a low-confidence warning. Launched by the dev container. |
+| [newplantpred.py](newplantpred.py) | **Light "field report" theme.** Redesigned: paper-like layout, **top-3 ranked candidates** with confidence bars, coverage listed from the shared registry. |
+| [plantpred.py](plantpred.py) | **v1 reference.** The original minimal UI — plain widgets, no CSS, single prediction. Deliberately left plain; only correctness fixes applied. |
 | [newplantclassification.ipynb](newplantclassification.ipynb) | Training notebook: data loading, two model definitions, training, evaluation, confusion matrix, single-image inference. |
 | [newplantdis.keras](newplantdis.keras) | Trained weights for `model2` (5 epochs) — the better-performing model. |
 | [trainedv3.keras](trainedv3.keras) | Trained weights for `model` (10 epochs). The notebook cell saves this one as `trainedv3.h5`; the committed `.keras` file was exported outside the recorded cells. |
@@ -79,10 +80,13 @@ about 60 MB each, so the initial clone is ~120 MB.
 | [training_hist2v3.json](training_hist2v3.json) | Per-epoch accuracy/loss history for `model2` (5 epochs). |
 | [home_page.jpg](home_page.jpg) | Hero image shown on the app's Home page. |
 | [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) | Codespaces / Dev Container setup that auto-launches Streamlit on port 8501. |
-| `requirements.txt` | Python dependencies. |
+| `requirements.txt` | Python dependencies, floor- and ceiling-pinned. |
+| [.gitignore](.gitignore) | Ignores the dataset directories, notebook-generated figures, checkpoints other than the committed `.keras` files, and the usual Python/Jupyter/Streamlit/OS noise. |
 
-The three `*pred*.py` files are near-duplicates that differ only in which checkpoint they load — a
-consolidation candidate (see [Roadmap](#roadmap)).
+**All three front-ends load `newplantdis.keras`**, the more accurate checkpoint, via
+`BEST_MODEL_PATH` in [plant_classes.py](plant_classes.py) — change it in one place to switch every
+app. They share the class list and path constants from that module, so none of them redefines the 38
+labels.
 
 ---
 
@@ -245,59 +249,49 @@ calls; enabling them would likely have avoided the epoch-10 regression noted abo
 that installs `requirements.txt` plus Streamlit, forwards port 8501, and auto-runs the app on attach:
 
 ```bash
-streamlit run plantpred.py --server.enableCORS false --server.enableXsrfProtection false
+streamlit run plantpredv2.py --server.enableCORS false --server.enableXsrfProtection false
 ```
 
-Note it launches the **original** [plantpred.py](plantpred.py), not `plantpredv2.py`. Update
-`postAttachCommand` if you want the current app. The `enableCORS` / `enableXsrfProtection` flags are
-there to make the forwarded-port preview work and should not be used in a real deployment.
+Change `postAttachCommand` to run a different front-end. The `enableCORS` / `enableXsrfProtection`
+flags are there to make the forwarded-port preview work and should not be used in a real deployment.
 
 ---
 
 ## Known issues and limitations
 
-These are real, currently-open problems in the code — worth knowing before you file a bug:
+Limits that are inherent to the model and dataset rather than bugs:
 
-- **Streamlit caching API is obsolete.** All three app scripts use
-  `@st.cache(allow_output_mutation=True)`, which was deprecated in Streamlit 1.18 and **removed** in
-  later versions; the app raises on import with modern Streamlit. Fix by switching to the
-  `@st.cache_resource` line already present but commented out just below it (e.g.
-  [plantpredv2.py:10-11](plantpredv2.py#L10-L11)).
-- **`use_column_width` is deprecated** in current Streamlit in favour of `use_container_width`.
-- **`plantpred.py` crashes on an empty upload.** Its `Show Image` / `Predict` buttons are outside any
-  `if test_image is not None` guard, so clicking them before uploading passes `None` downstream.
-  `plantpredv2.py` and `newplantpred.py` fix this.
-- **The default app loads the weaker checkpoint** (`trainedv3.keras`). See
-  [Results](#results).
-- **`requirements.txt` is incomplete** — it lists only `tensorflow`, with no `streamlit`, no `numpy`
-  and no version pins, so a fresh environment is not reproducible.
-- **Duplicated app code.** `plantpred.py`, `newplantpred.py` and `plantpredv2.py` are near-identical;
-  the 38-class list is copy-pasted into each.
-- **Typo:** "sIdentify" on the Disease Recognition page of [plantpred.py:109](plantpred.py#L109).
-- **UI overstates the product.** The Home/About copy promises "treatment recommendations", a
-  "comprehensive database" and a "continually updated" model. None of that is implemented — the app
-  returns a single class label and nothing else.
-- **No confidence score is shown.** `argmax` discards the softmax probability, so a 35 % guess and a
-  99 % match look identical to the user. Surfacing `np.max(prediction)` would be a cheap improvement.
-- **Not a diagnostic authority.** Trained on lab-style, single-leaf, uniform-background images;
-  accuracy on real-world field photos will be markedly lower. Do not use it as the sole basis for
-  pesticide or crop-management decisions.
+- **The accuracy figure is optimistic.** 97.7 % is measured on the validation split, which was also
+  used to monitor training. There is no untouched test set.
+- **Lab conditions, not field conditions.** PlantVillage images are single leaves under even light on
+  a uniform background. Real field photography will score materially worse. The apps mitigate this
+  with a 60 % confidence floor, but cannot eliminate it.
+- **Closed-world classifier.** Softmax over 38 classes always names one of them. An off-domain photo
+  (an unsupported crop, a whole plant, a non-leaf subject) still gets a label — the confidence floor
+  flags the likely cases, but a confident wrong answer is possible.
+- **No treatment guidance.** The apps report a label and confidence, and point you at an agronomist.
+  They do not prescribe pesticide or dosage.
+- **Not a diagnostic authority.** Do not use this as the sole basis for pesticide or crop-management
+  decisions.
 - **Large binaries in Git.** Two ~60 MB `.keras` files are committed without Git LFS, so every clone
   and every future checkpoint bloats history.
+- **`trainedv3.keras` is kept but unused** — no app loads it. It is retained for comparison against
+  `newplantdis.keras`; see [Results](#results).
 
 ---
 
 ## Roadmap
 
-- Migrate to `@st.cache_resource` and `use_container_width`; pin dependencies in `requirements.txt`.
-- Collapse the three app scripts into one, with the model path and class list in a shared module or
-  config.
-- Display top-k predictions with confidence scores, and an "uncertain" threshold.
 - Retrain with `EarlyStopping` + `ReduceLROnPlateau` and a `ModelCheckpoint` on best `val_loss`; hold
-  out a true test split.
+  out a true test split so the accuracy figure is honest.
 - Try transfer learning (EfficientNet / MobileNetV3) for better field-photo generalisation and a
   smaller model.
-- Add the treatment-recommendation content the UI already advertises, or trim the claims.
+- Show top-3 candidates in `plantpredv2.py` too, as `newplantpred.py` now does.
+- Add real per-disease treatment guidance behind the label.
+- Calibrate the 60 % confidence floor against measured out-of-domain photos rather than picking it by
+  eye.
+- Add a smoke test in CI that imports each app with `streamlit`/`tensorflow` stubbed, so API removals
+  are caught before release.
 - Move checkpoints to Git LFS or a release artifact.
 
 ---
